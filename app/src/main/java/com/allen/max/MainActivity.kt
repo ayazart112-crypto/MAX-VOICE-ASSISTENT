@@ -136,9 +136,9 @@ class MainActivity : AppCompatActivity(), TextToSpeech.OnInitListener {
             Manifest.permission.READ_CONTACTS,
             Manifest.permission.SEND_SMS,
             Manifest.permission.CAMERA,
-            Manifest.permission.FLASHLIGHT,
+            "android.permission.FLASHLIGHT",
             Manifest.permission.SET_ALARM,
-            Manifest.permission.CHANGE_AUDIO_SETTINGS,
+            "android.permission.CHANGE_AUDIO_SETTINGS",
             Manifest.permission.WRITE_SETTINGS,
             Manifest.permission.READ_EXTERNAL_STORAGE
         )
