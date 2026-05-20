@@ -1,0 +1,6 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="app_name">MAX</string>
+    <string name="listening">Listening...</string>
+    <string name="tap_to_speak">Tap mic to speak</string>
+</resources>
