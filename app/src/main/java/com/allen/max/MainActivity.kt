@@ -45,14 +45,29 @@ class MainActivity : AppCompatActivity(), TextToSpeech.OnInitListener {
         commandProcessor = CommandProcessor(this)
         speechRecognizer = SpeechRecognizer.createSpeechRecognizer(this)
         setupSpeechRecognizer()
-        requestPermissions()
 
-        btnMic.setOnClickListener {
-            if (!isListening) startListening() else stopListening()
+        if (!hasRequiredPermissions()) {
+            requestPermissions()
         }
 
-        // Start background service
+        btnMic.setOnClickListener {
+            if (ContextCompat.checkSelfPermission(this, Manifest.permission.RECORD_AUDIO)
+                == PackageManager.PERMISSION_GRANTED) {
+                if (!isListening) startListening() else stopListening()
+            } else {
+                ActivityCompat.requestPermissions(
+                    this,
+                    arrayOf(Manifest.permission.RECORD_AUDIO),
+                    PERMISSION_REQUEST_CODE
+                )
+            }
+        }
+
         startService(Intent(this, MAXService::class.java))
+    }
+
+    private fun hasRequiredPermissions(): Boolean {
+        return ContextCompat.checkSelfPermission(this, Manifest.permission.RECORD_AUDIO) == PackageManager.PERMISSION_GRANTED
     }
 
     override fun onInit(status: Int) {
@@ -78,13 +93,12 @@ class MainActivity : AppCompatActivity(), TextToSpeech.OnInitListener {
             override fun onError(error: Int) {
                 isListening = false
                 updateUI(false)
-                speak("Sorry, I didn't catch that. Please try again.")
+                if (error != SpeechRecognizer.ERROR_NO_MATCH) {
+                    speak("Sorry, I didn't catch that. Please try again.")
+                }
             }
 
-            override fun onReadyForSpeech(params: Bundle?) {
-                tvStatus.text = "Listening..."
-            }
-
+            override fun onReadyForSpeech(params: Bundle?) { tvStatus.text = "Listening..." }
             override fun onBeginningOfSpeech() {}
             override fun onRmsChanged(rmsdB: Float) {}
             override fun onBufferReceived(buffer: ByteArray?) {}
@@ -105,17 +119,14 @@ class MainActivity : AppCompatActivity(), TextToSpeech.OnInitListener {
     }
 
     private fun startListening() {
-        if (ContextCompat.checkSelfPermission(this, Manifest.permission.RECORD_AUDIO)
-            == PackageManager.PERMISSION_GRANTED) {
-            isListening = true
-            updateUI(true)
-            val intent = Intent(RecognizerIntent.ACTION_RECOGNIZE_SPEECH).apply {
-                putExtra(RecognizerIntent.EXTRA_LANGUAGE_MODEL, RecognizerIntent.LANGUAGE_MODEL_FREE_FORM)
-                putExtra(RecognizerIntent.EXTRA_LANGUAGE, Locale.getDefault())
-                putExtra(RecognizerIntent.EXTRA_MAX_RESULTS, 1)
-            }
-            speechRecognizer.startListening(intent)
+        isListening = true
+        updateUI(true)
+        val intent = Intent(RecognizerIntent.ACTION_RECOGNIZE_SPEECH).apply {
+            putExtra(RecognizerIntent.EXTRA_LANGUAGE_MODEL, RecognizerIntent.LANGUAGE_MODEL_FREE_FORM)
+            putExtra(RecognizerIntent.EXTRA_LANGUAGE, Locale.getDefault())
+            putExtra(RecognizerIntent.EXTRA_MAX_RESULTS, 1)
         }
+        speechRecognizer.startListening(intent)
     }
 
     private fun stopListening() {
@@ -130,19 +141,27 @@ class MainActivity : AppCompatActivity(), TextToSpeech.OnInitListener {
     }
 
     private fun requestPermissions() {
-        val permissions = arrayOf(
-            Manifest.permission.RECORD_AUDIO,
-            Manifest.permission.CALL_PHONE,
-            Manifest.permission.READ_CONTACTS,
-            Manifest.permission.SEND_SMS,
-            Manifest.permission.CAMERA,
-            "android.permission.FLASHLIGHT",
-            Manifest.permission.SET_ALARM,
-            "android.permission.CHANGE_AUDIO_SETTINGS",
-            Manifest.permission.WRITE_SETTINGS,
-            Manifest.permission.READ_EXTERNAL_STORAGE
+        ActivityCompat.requestPermissions(
+            this,
+            arrayOf(
+                Manifest.permission.RECORD_AUDIO,
+                Manifest.permission.CALL_PHONE,
+                Manifest.permission.READ_CONTACTS,
+                Manifest.permission.SEND_SMS,
+                Manifest.permission.CAMERA,
+                Manifest.permission.READ_EXTERNAL_STORAGE
+            ),
+            PERMISSION_REQUEST_CODE
         )
-        ActivityCompat.requestPermissions(this, permissions, PERMISSION_REQUEST_CODE)
+    }
+
+    override fun onRequestPermissionsResult(requestCode: Int, permissions: Array<String>, grantResults: IntArray) {
+        super.onRequestPermissionsResult(requestCode, permissions, grantResults)
+        if (requestCode == PERMISSION_REQUEST_CODE) {
+            if (grantResults.isNotEmpty() && grantResults[0] == PackageManager.PERMISSION_GRANTED) {
+                tvStatus.text = "Tap mic to speak"
+            }
+        }
     }
 
     override fun onDestroy() {
