@@ -18,22 +18,7 @@ class CommandProcessor(private val context: Context) {
     private val cameraManager = context.getSystemService(Context.CAMERA_SERVICE) as CameraManager
     private val audioManager = context.getSystemService(Context.AUDIO_SERVICE) as AudioManager
     private var flashlightOn = false
-    private var apiKey = ""
-
-    init {
-        try {
-            val keyFile = java.io.File(context.filesDir, "gemini_key.txt")
-            if (keyFile.exists()) apiKey = keyFile.readText().trim()
-        } catch (e: Exception) {}
-    }
-
-    fun setApiKey(key: String) {
-        apiKey = key
-        try {
-            val keyFile = java.io.File(context.filesDir, "gemini_key.txt")
-            keyFile.writeText(key)
-        } catch (e: Exception) {}
-    }
+    private val apiKey = "AIzaSyBOSyUCoYBl7wjHGDxwN3sgaENDvdnyxGg"
 
     fun process(command: String): String {
         return when {
@@ -73,13 +58,12 @@ class CommandProcessor(private val context: Context) {
             command.contains("stop") || command.contains("bye") || command.contains("exit") -> "Goodbye Allen! I'm always here when you need me."
             else -> {
                 askAI(command)
-                "Let me think about that..."
+                "Let me think..."
             }
         }
     }
 
     private fun askAI(command: String) {
-        if (apiKey.isEmpty()) return
         AIHelper.askAI(command, apiKey) { response ->
             android.os.Handler(android.os.Looper.getMainLooper()).post {
                 (context as? MainActivity)?.updateResponse(response)
@@ -98,29 +82,25 @@ class CommandProcessor(private val context: Context) {
         }
         val message = if (sayIndex != -1) command.substring(sayIndex + 5).trim() else ""
         val phone = if (name.isNotEmpty()) ContactHelper.getPhoneNumber(context, name) else null
-
         return if (phone != null && message.isNotEmpty()) {
             val cleanPhone = phone.replace("+", "").replace(" ", "").replace("-", "")
-            val intent = Intent(Intent.ACTION_VIEW).apply {
+            context.startActivity(Intent(Intent.ACTION_VIEW).apply {
                 data = Uri.parse("https://api.whatsapp.com/send?phone=$cleanPhone&text=${Uri.encode(message)}")
                 flags = Intent.FLAG_ACTIVITY_NEW_TASK
-            }
-            context.startActivity(intent)
+            })
             "Sending WhatsApp message to $name."
         } else if (phone != null) {
             val cleanPhone = phone.replace("+", "").replace(" ", "").replace("-", "")
-            val intent = Intent(Intent.ACTION_VIEW).apply {
+            context.startActivity(Intent(Intent.ACTION_VIEW).apply {
                 data = Uri.parse("https://api.whatsapp.com/send?phone=$cleanPhone")
                 flags = Intent.FLAG_ACTIVITY_NEW_TASK
-            }
-            context.startActivity(intent)
+            })
             "Opening WhatsApp chat with $name."
         } else {
-            val intent = Intent(Intent.ACTION_VIEW).apply {
+            context.startActivity(Intent(Intent.ACTION_VIEW).apply {
                 data = Uri.parse("https://wa.me/")
                 flags = Intent.FLAG_ACTIVITY_NEW_TASK
-            }
-            context.startActivity(intent)
+            })
             if (name.isNotEmpty()) "Couldn't find $name. Opening WhatsApp." else "Opening WhatsApp."
         }
     }
@@ -130,19 +110,17 @@ class CommandProcessor(private val context: Context) {
             .replace("youtube", "").replace("song", "").replace("music", "").trim()
         return if (query.isNotEmpty()) {
             try {
-                val ytIntent = Intent(Intent.ACTION_SEARCH).apply {
+                context.startActivity(Intent(Intent.ACTION_SEARCH).apply {
                     setPackage("com.google.android.youtube")
                     putExtra("query", query)
                     flags = Intent.FLAG_ACTIVITY_NEW_TASK
-                }
-                context.startActivity(ytIntent)
+                })
                 "Searching YouTube for $query."
             } catch (e: Exception) {
-                val intent = Intent(Intent.ACTION_VIEW).apply {
+                context.startActivity(Intent(Intent.ACTION_VIEW).apply {
                     data = Uri.parse("https://www.youtube.com/results?search_query=${Uri.encode(query)}")
                     flags = Intent.FLAG_ACTIVITY_NEW_TASK
-                }
-                context.startActivity(intent)
+                })
                 "Searching YouTube for $query."
             }
         } else {
@@ -158,12 +136,10 @@ class CommandProcessor(private val context: Context) {
         val name = command.replace("send sms to", "").replace("send sms", "").trim().split(" ").firstOrNull() ?: ""
         val phone = ContactHelper.getPhoneNumber(context, name)
         val message = if (command.contains(" say ")) command.substringAfter(" say ").trim() else ""
-        val uri = if (phone != null) Uri.parse("sms:$phone") else Uri.parse("sms:")
-        val intent = Intent(Intent.ACTION_VIEW, uri).apply {
+        context.startActivity(Intent(Intent.ACTION_VIEW, if (phone != null) Uri.parse("sms:$phone") else Uri.parse("sms:")).apply {
             putExtra("sms_body", message)
             flags = Intent.FLAG_ACTIVITY_NEW_TASK
-        }
-        context.startActivity(intent)
+        })
         return if (phone != null) "Opening SMS to $name." else "Opening messages."
     }
 
@@ -171,16 +147,11 @@ class CommandProcessor(private val context: Context) {
         val name = command.replace("call", "").trim()
         val phone = ContactHelper.getPhoneNumber(context, name)
         return if (phone != null) {
-            val intent = Intent(Intent.ACTION_CALL, Uri.parse("tel:$phone")).apply {
-                flags = Intent.FLAG_ACTIVITY_NEW_TASK
-            }
-            context.startActivity(intent)
+            context.startActivity(Intent(Intent.ACTION_CALL, Uri.parse("tel:$phone")).apply { flags = Intent.FLAG_ACTIVITY_NEW_TASK })
             "Calling $name now."
         } else if (name.isNotEmpty()) {
             "I couldn't find $name in your contacts."
-        } else {
-            "Who would you like to call?"
-        }
+        } else { "Who would you like to call?" }
     }
 
     private fun handleRedial(): String = "Redialing last number."
@@ -195,8 +166,11 @@ class CommandProcessor(private val context: Context) {
     }
 
     private fun adjustVolume(increase: Boolean): String {
-        val direction = if (increase) AudioManager.ADJUST_RAISE else AudioManager.ADJUST_LOWER
-        audioManager.adjustStreamVolume(AudioManager.STREAM_RING, direction, AudioManager.FLAG_SHOW_UI)
+        audioManager.adjustStreamVolume(
+            AudioManager.STREAM_RING,
+            if (increase) AudioManager.ADJUST_RAISE else AudioManager.ADJUST_LOWER,
+            AudioManager.FLAG_SHOW_UI
+        )
         return if (increase) "Volume increased." else "Volume decreased."
     }
 
@@ -238,11 +212,10 @@ class CommandProcessor(private val context: Context) {
 
     private fun handleWebSearch(command: String): String {
         val query = command.replace("search", "").replace("google", "").replace("for", "").trim()
-        val intent = Intent(Intent.ACTION_VIEW).apply {
+        context.startActivity(Intent(Intent.ACTION_VIEW).apply {
             data = Uri.parse("https://www.google.com/search?q=${Uri.encode(query)}")
             flags = Intent.FLAG_ACTIVITY_NEW_TASK
-        }
-        context.startActivity(intent)
+        })
         return "Searching for $query."
     }
 
@@ -252,17 +225,15 @@ class CommandProcessor(private val context: Context) {
             val hour = match.groupValues[1].toInt()
             val isPM = match.groupValues[2].lowercase() == "pm"
             val actualHour = if (isPM && hour != 12) hour + 12 else hour
-            val intent = Intent(AlarmClock.ACTION_SET_ALARM).apply {
+            context.startActivity(Intent(AlarmClock.ACTION_SET_ALARM).apply {
                 putExtra(AlarmClock.EXTRA_HOUR, actualHour)
                 putExtra(AlarmClock.EXTRA_MINUTES, 0)
                 putExtra(AlarmClock.EXTRA_MESSAGE, "MAX Alarm")
                 flags = Intent.FLAG_ACTIVITY_NEW_TASK
-            }
-            context.startActivity(intent)
+            })
             "Alarm set for $hour ${if (isPM) "PM" else "AM"}."
         } else {
-            val intent = Intent(AlarmClock.ACTION_SHOW_ALARMS).apply { flags = Intent.FLAG_ACTIVITY_NEW_TASK }
-            context.startActivity(intent)
+            context.startActivity(Intent(AlarmClock.ACTION_SHOW_ALARMS).apply { flags = Intent.FLAG_ACTIVITY_NEW_TASK })
             "Opening alarms."
         }
     }
@@ -277,12 +248,11 @@ class CommandProcessor(private val context: Context) {
                 unit.startsWith("min") -> amount * 60
                 else -> amount
             }
-            val intent = Intent(AlarmClock.ACTION_SET_TIMER).apply {
+            context.startActivity(Intent(AlarmClock.ACTION_SET_TIMER).apply {
                 putExtra(AlarmClock.EXTRA_LENGTH, seconds)
                 putExtra(AlarmClock.EXTRA_SKIP_UI, false)
                 flags = Intent.FLAG_ACTIVITY_NEW_TASK
-            }
-            context.startActivity(intent)
+            })
             "Timer set for $amount $unit."
         } else { "How long should the timer be?" }
     }
@@ -309,22 +279,20 @@ class CommandProcessor(private val context: Context) {
 
     private fun handleNavigation(command: String): String {
         val dest = command.replace("navigate to", "").replace("directions to", "").replace("take me to", "").trim()
-        val intent = Intent(Intent.ACTION_VIEW).apply {
+        context.startActivity(Intent(Intent.ACTION_VIEW).apply {
             data = Uri.parse("google.navigation:q=${Uri.encode(dest)}")
             setPackage("com.google.android.apps.maps")
             flags = Intent.FLAG_ACTIVITY_NEW_TASK
-        }
-        context.startActivity(intent)
+        })
         return "Navigating to $dest."
     }
 
     private fun handleCamera(command: String): String {
         val isSelfie = command.contains("selfie") || command.contains("front")
-        val intent = Intent(android.provider.MediaStore.ACTION_IMAGE_CAPTURE).apply {
+        context.startActivity(Intent(android.provider.MediaStore.ACTION_IMAGE_CAPTURE).apply {
             if (isSelfie) putExtra("android.intent.extras.CAMERA_FACING", 1)
             flags = Intent.FLAG_ACTIVITY_NEW_TASK
-        }
-        context.startActivity(intent)
+        })
         return if (isSelfie) "Opening front camera." else "Opening camera."
     }
 
