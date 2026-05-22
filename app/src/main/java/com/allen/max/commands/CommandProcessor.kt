@@ -10,12 +10,30 @@ import android.provider.Settings
 import com.allen.max.utils.ContactHelper
 import com.allen.max.utils.DateTimeHelper
 import com.allen.max.utils.BatteryHelper
+import com.allen.max.utils.AIHelper
+import com.allen.max.MainActivity
 
 class CommandProcessor(private val context: Context) {
 
     private val cameraManager = context.getSystemService(Context.CAMERA_SERVICE) as CameraManager
     private val audioManager = context.getSystemService(Context.AUDIO_SERVICE) as AudioManager
     private var flashlightOn = false
+    private var apiKey = ""
+
+    init {
+        try {
+            val keyFile = java.io.File(context.filesDir, "gemini_key.txt")
+            if (keyFile.exists()) apiKey = keyFile.readText().trim()
+        } catch (e: Exception) {}
+    }
+
+    fun setApiKey(key: String) {
+        apiKey = key
+        try {
+            val keyFile = java.io.File(context.filesDir, "gemini_key.txt")
+            keyFile.writeText(key)
+        } catch (e: Exception) {}
+    }
 
     fun process(command: String): String {
         return when {
@@ -49,11 +67,24 @@ class CommandProcessor(private val context: Context) {
             command.contains("weather") -> handleWeather()
             command.contains("contact") -> handleContacts(command)
             command.contains("joke") -> tellJoke()
-            command.contains("how are you") -> "I'm doing great, Allen! Always ready to help you."
-            command.contains("who are you") || command.contains("your name") -> "I am MAX, your personal voice assistant built by Allen."
+            command.contains("how are you") -> "I'm doing great Allen! Always ready to help you."
+            command.contains("who are you") || command.contains("your name") -> "I am MAX, your personal AI voice assistant built by Allen."
             command.contains("what can you do") || command.contains("help") -> listCommands()
             command.contains("stop") || command.contains("bye") || command.contains("exit") -> "Goodbye Allen! I'm always here when you need me."
-            else -> "Sorry Allen, I didn't understand. Say 'what can you do' to hear my features."
+            else -> {
+                askAI(command)
+                "Let me think about that..."
+            }
+        }
+    }
+
+    private fun askAI(command: String) {
+        if (apiKey.isEmpty()) return
+        AIHelper.askAI(command, apiKey) { response ->
+            android.os.Handler(android.os.Looper.getMainLooper()).post {
+                (context as? MainActivity)?.updateResponse(response)
+                (context as? MainActivity)?.speak(response)
+            }
         }
     }
 
@@ -75,7 +106,7 @@ class CommandProcessor(private val context: Context) {
                 flags = Intent.FLAG_ACTIVITY_NEW_TASK
             }
             context.startActivity(intent)
-            "Sending WhatsApp message to $name: $message"
+            "Sending WhatsApp message to $name."
         } else if (phone != null) {
             val cleanPhone = phone.replace("+", "").replace(" ", "").replace("-", "")
             val intent = Intent(Intent.ACTION_VIEW).apply {
@@ -90,14 +121,13 @@ class CommandProcessor(private val context: Context) {
                 flags = Intent.FLAG_ACTIVITY_NEW_TASK
             }
             context.startActivity(intent)
-            if (name.isNotEmpty()) "Couldn't find $name in contacts. Opening WhatsApp." else "Opening WhatsApp."
+            if (name.isNotEmpty()) "Couldn't find $name. Opening WhatsApp." else "Opening WhatsApp."
         }
     }
 
     private fun handleYouTubePlay(command: String): String {
-        val query = command
-            .replace("play", "").replace("on youtube", "").replace("youtube", "")
-            .replace("song", "").replace("music", "").trim()
+        val query = command.replace("play", "").replace("on youtube", "")
+            .replace("youtube", "").replace("song", "").replace("music", "").trim()
         return if (query.isNotEmpty()) {
             try {
                 val ytIntent = Intent(Intent.ACTION_SEARCH).apply {
@@ -141,7 +171,9 @@ class CommandProcessor(private val context: Context) {
         val name = command.replace("call", "").trim()
         val phone = ContactHelper.getPhoneNumber(context, name)
         return if (phone != null) {
-            val intent = Intent(Intent.ACTION_CALL, Uri.parse("tel:$phone")).apply { flags = Intent.FLAG_ACTIVITY_NEW_TASK }
+            val intent = Intent(Intent.ACTION_CALL, Uri.parse("tel:$phone")).apply {
+                flags = Intent.FLAG_ACTIVITY_NEW_TASK
+            }
             context.startActivity(intent)
             "Calling $name now."
         } else if (name.isNotEmpty()) {
@@ -151,9 +183,7 @@ class CommandProcessor(private val context: Context) {
         }
     }
 
-    private fun handleRedial(): String {
-        return "Redialing last number."
-    }
+    private fun handleRedial(): String = "Redialing last number."
 
     private fun toggleFlashlight(command: String): String {
         return try {
@@ -242,7 +272,11 @@ class CommandProcessor(private val context: Context) {
         return if (match != null) {
             val amount = match.groupValues[1].toInt()
             val unit = match.groupValues[2]
-            val seconds = when { unit.startsWith("hour") || unit.startsWith("hr") -> amount * 3600; unit.startsWith("min") -> amount * 60; else -> amount }
+            val seconds = when {
+                unit.startsWith("hour") || unit.startsWith("hr") -> amount * 3600
+                unit.startsWith("min") -> amount * 60
+                else -> amount
+            }
             val intent = Intent(AlarmClock.ACTION_SET_TIMER).apply {
                 putExtra(AlarmClock.EXTRA_LENGTH, seconds)
                 putExtra(AlarmClock.EXTRA_SKIP_UI, false)
@@ -321,6 +355,6 @@ class CommandProcessor(private val context: Context) {
     private fun listCommands(): String {
         return "I can: make calls, send WhatsApp messages, play songs on YouTube, open apps, " +
             "control flashlight, volume, alarms, timers, WiFi, Bluetooth, navigate, take photos, " +
-            "check weather, search the web, check battery, and more!"
+            "check weather, search the web, check battery, and answer any question with AI!"
     }
 }

@@ -137,6 +137,10 @@ class MainActivity : AppCompatActivity(), TextToSpeech.OnInitListener {
         speak(response)
     }
 
+    fun updateResponse(text: String) {
+        tvResponse.text = "MAX: $text"
+    }
+
     fun speak(text: String) {
         tts.speak(text, TextToSpeech.QUEUE_FLUSH, null, null)
     }
