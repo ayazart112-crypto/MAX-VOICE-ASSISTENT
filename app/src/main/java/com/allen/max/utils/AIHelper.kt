@@ -49,6 +49,10 @@ object AIHelper {
 
                 override fun onResponse(call: Call, response: Response) {
                     val body = response.body?.string() ?: ""
+                    if (!response.isSuccessful) {
+                        callback("AI Error (${response.code}): ${if (response.code == 403) "Invalid API Key" else "Internal Error"}")
+                        return
+                    }
                     try {
                         val json = JSONObject(body)
                         val text = json
@@ -67,7 +71,7 @@ object AIHelper {
 
                         callback(text)
                     } catch (e: Exception) {
-                        callback("I'm sorry, I encountered a processing error. Please try again.")
+                        callback("I'm sorry, I couldn't process the AI response. Please try again.")
                     }
                 }
             })
