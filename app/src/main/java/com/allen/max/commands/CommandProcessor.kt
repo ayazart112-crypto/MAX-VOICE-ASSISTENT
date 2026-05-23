@@ -13,12 +13,11 @@ import com.allen.max.utils.BatteryHelper
 import com.allen.max.utils.AIHelper
 import com.allen.max.MainActivity
 
-class CommandProcessor(private val context: Context) {
+class CommandProcessor(private val context: Context, private val apiKey: String) {
 
     private val cameraManager = context.getSystemService(Context.CAMERA_SERVICE) as CameraManager
     private val audioManager = context.getSystemService(Context.AUDIO_SERVICE) as AudioManager
     private var flashlightOn = false
-    private val apiKey = "AIzaSyBOSyUCoYBl7wjHGDxwN3sgaENDvdnyxGg"
 
     fun process(command: String): String {
         return when {
@@ -47,18 +46,20 @@ class CommandProcessor(private val context: Context) {
             command.contains("brightness") -> handleBrightness(command)
             command.contains("airplane mode") -> handleAirplaneMode()
             command.contains("battery") -> BatteryHelper.getBatteryStatus(context)
+            command.contains("news") -> { askAI("Tell me the latest global news briefly."); "Fetching the latest news for you..." }
+            command.contains("fact") -> { askAI("Tell me an interesting random fact."); "Let me find an interesting fact." }
             command.contains("navigate") || command.contains("directions") || command.contains("take me to") -> handleNavigation(command)
             command.contains("take photo") || command.contains("take picture") || command.contains("selfie") -> handleCamera(command)
             command.contains("weather") -> handleWeather()
             command.contains("contact") -> handleContacts(command)
             command.contains("joke") -> tellJoke()
-            command.contains("how are you") -> "I'm doing great Allen! Always ready to help you."
-            command.contains("who are you") || command.contains("your name") -> "I am MAX, your personal AI voice assistant built by Allen."
+            command.contains("how are you") -> "I'm performing at peak capacity, Allen! Thanks for asking. How can I help?"
+            command.contains("who are you") || command.contains("your name") -> "I am MAX, your personal AI voice assistant. I was created to make your life easier."
             command.contains("what can you do") || command.contains("help") -> listCommands()
-            command.contains("stop") || command.contains("bye") || command.contains("exit") -> "Goodbye Allen! I'm always here when you need me."
+            command.contains("stop") || command.contains("bye") || command.contains("exit") -> "Shutting down. Goodbye, Allen!"
             else -> {
                 askAI(command)
-                "Let me think..."
+                "Checking my memory banks..."
             }
         }
     }

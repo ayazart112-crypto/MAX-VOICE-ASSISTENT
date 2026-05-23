@@ -9,7 +9,7 @@ import java.io.IOException
 
 object AIHelper {
 
-    private const val API_URL = "https://generativelanguage.googleapis.com/v1beta/models/gemini-pro:generateContent"
+    private const val API_URL = "https://generativelanguage.googleapis.com/v1/models/gemini-1.5-flash:generateContent"
     private val client = OkHttpClient()
     private val conversationHistory = mutableListOf<JSONObject>()
 
@@ -21,10 +21,14 @@ object AIHelper {
                 put("parts", JSONArray().put(JSONObject().put("text", userMessage)))
             })
 
-            val systemPrompt = """You are MAX, an intelligent voice assistant created by Allen. 
-                You are helpful, friendly and concise. Keep responses short (1-2 sentences) 
-                since they will be spoken aloud. You can understand both English and Urdu.
-                If user speaks Urdu, reply in Urdu. If English, reply in English."""
+            val systemPrompt = """You are MAX (Multilingual Assistant X), a highly advanced voice assistant created by Allen.
+                Your personality: Friendly, witty, slightly futuristic, and extremely helpful.
+                Language rules:
+                1. Always respond in the SAME language the user uses (English or Urdu/Roman Urdu).
+                2. If the user mixes languages, respond in English but acknowledge the Urdu parts.
+                Conciseness: Keep responses under 20 words as they will be spoken aloud.
+                Context: You are running on an Android device and can help with phone tasks. 
+                If you cannot perform a task directly, suggest the voice command to use (e.g., "Say 'Open WhatsApp' to chat")."""
 
             val requestBody = JSONObject().apply {
                 put("system_instruction", JSONObject().apply {

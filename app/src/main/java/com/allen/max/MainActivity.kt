@@ -10,7 +10,7 @@ import android.speech.RecognitionListener
 import android.speech.RecognizerIntent
 import android.speech.SpeechRecognizer
 import android.speech.tts.TextToSpeech
-import android.view.View
+import android.widget.ImageButton
 import android.widget.TextView
 import androidx.appcompat.app.AppCompatActivity
 import androidx.core.app.ActivityCompat
@@ -27,7 +27,7 @@ class MainActivity : AppCompatActivity(), TextToSpeech.OnInitListener {
     private lateinit var tvStatus: TextView
     private lateinit var tvCommand: TextView
     private lateinit var tvResponse: TextView
-    private lateinit var btnMic: View
+    private lateinit var btnMic: ImageButton
     private var isListening = false
     private var autoRestart = false
 
@@ -45,7 +45,8 @@ class MainActivity : AppCompatActivity(), TextToSpeech.OnInitListener {
         btnMic = findViewById(R.id.btnMic)
 
         tts = TextToSpeech(this, this)
-        commandProcessor = CommandProcessor(this)
+        val apiKey = try { assets.open("gemini_key.txt").bufferedReader().use { it.readText().trim() } } catch (e: Exception) { "" }
+        commandProcessor = CommandProcessor(this, apiKey)
         speechRecognizer = SpeechRecognizer.createSpeechRecognizer(this)
         setupSpeechRecognizer()
 
@@ -167,6 +168,32 @@ class MainActivity : AppCompatActivity(), TextToSpeech.OnInitListener {
     private fun updateUI(listening: Boolean) {
         tvStatus.text = if (listening) "Listening..." else "Tap mic to speak"
         btnMic.isSelected = listening
+        if (listening) {
+            startPulsingAnimation()
+        } else {
+            stopPulsingAnimation()
+        }
+    }
+
+    private var pulseAnimator: android.animation.ObjectAnimator? = null
+
+    private fun startPulsingAnimation() {
+        pulseAnimator = android.animation.ObjectAnimator.ofPropertyValuesHolder(
+            btnMic,
+            android.animation.PropertyValuesHolder.ofFloat("scaleX", 1.0f, 1.2f),
+            android.animation.PropertyValuesHolder.ofFloat("scaleY", 1.0f, 1.2f)
+        ).apply {
+            duration = 800
+            repeatCount = android.animation.ObjectAnimator.INFINITE
+            repeatMode = android.animation.ObjectAnimator.REVERSE
+            start()
+        }
+    }
+
+    private fun stopPulsingAnimation() {
+        pulseAnimator?.cancel()
+        btnMic.scaleX = 1.0f
+        btnMic.scaleY = 1.0f
     }
 
     private fun requestPermissions() {
