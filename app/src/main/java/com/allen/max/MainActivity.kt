@@ -28,6 +28,8 @@ class MainActivity : AppCompatActivity(), TextToSpeech.OnInitListener {
     private lateinit var tvCommand: TextView
     private lateinit var tvResponse: TextView
     private lateinit var btnMic: ImageButton
+    private lateinit var btnLang: TextView
+    private var isUrduMode = false
     private var isListening = false
     private var autoRestart = false
 
@@ -43,6 +45,7 @@ class MainActivity : AppCompatActivity(), TextToSpeech.OnInitListener {
         tvCommand = findViewById(R.id.tvCommand)
         tvResponse = findViewById(R.id.tvResponse)
         btnMic = findViewById(R.id.btnMic)
+        btnLang = findViewById(R.id.btnLang)
 
         tts = TextToSpeech(this, this)
         val apiKey = try { assets.open("gemini_key.txt").bufferedReader().use { it.readText().trim() } } catch (e: Exception) { "" }
@@ -71,6 +74,12 @@ class MainActivity : AppCompatActivity(), TextToSpeech.OnInitListener {
                     PERMISSION_REQUEST_CODE
                 )
             }
+        }
+
+        btnLang.setOnClickListener {
+            isUrduMode = !isUrduMode
+            btnLang.text = if (isUrduMode) "UR" else "EN"
+            tvStatus.text = if (isUrduMode) "اردو موڈ فعال" else "English mode active"
         }
 
         startService(Intent(this, MAXService::class.java))
@@ -157,6 +166,13 @@ class MainActivity : AppCompatActivity(), TextToSpeech.OnInitListener {
     }
 
     fun speak(text: String) {
+        val isUrdu = text.any { it in '\u0600'..'\u06FF' }
+        if (isUrdu) {
+            tts.language = Locale("ur", "PK")
+        } else {
+            tts.language = Locale.US
+        }
+        
         val params = Bundle()
         params.putString(TextToSpeech.Engine.KEY_PARAM_UTTERANCE_ID, "MAX_UTTERANCE")
         tts.speak(text, TextToSpeech.QUEUE_FLUSH, params, "MAX_UTTERANCE")
@@ -168,7 +184,12 @@ class MainActivity : AppCompatActivity(), TextToSpeech.OnInitListener {
         updateUI(true)
         val intent = Intent(RecognizerIntent.ACTION_RECOGNIZE_SPEECH).apply {
             putExtra(RecognizerIntent.EXTRA_LANGUAGE_MODEL, RecognizerIntent.LANGUAGE_MODEL_FREE_FORM)
-            putExtra(RecognizerIntent.EXTRA_LANGUAGE, Locale.getDefault())
+            
+            val language = if (isUrduMode) "ur-PK" else "en-US"
+            putExtra(RecognizerIntent.EXTRA_LANGUAGE, language)
+            putExtra(RecognizerIntent.EXTRA_LANGUAGE_PREFERENCE, language)
+            putExtra(RecognizerIntent.EXTRA_ONLY_RETURN_LANGUAGE_PREFERENCE, false)
+            
             putExtra(RecognizerIntent.EXTRA_MAX_RESULTS, 1)
         }
         speechRecognizer.startListening(intent)
