@@ -15,13 +15,6 @@ object AIHelper {
 
     fun askAI(userMessage: String, apiKey: String, callback: (String) -> Unit) {
         try {
-            // Add user message to history
-            val userMsg = JSONObject().apply {
-                put("role", "user")
-                put("parts", JSONArray().put(JSONObject().put("text", userMessage)))
-            }
-            conversationHistory.add(userMsg)
-
             val systemPrompt = """You are MAX (Multilingual Assistant X), a highly advanced voice assistant created by Allen.
                 Your personality: Friendly, witty, slightly futuristic, and extremely helpful.
                 Language rules:
@@ -31,15 +24,21 @@ object AIHelper {
                 Context: You are running on an Android device and can help with phone tasks. 
                 If you cannot perform a task directly, suggest the voice command to use (e.g., "Say 'Open WhatsApp' to chat")."""
 
-            // Build contents array correctly
-            val contentsArray = JSONArray()
-            conversationHistory.forEach { contentsArray.put(it) }
+            // Create temporary contents array for this request
+            val currentContents = JSONArray()
+            conversationHistory.forEach { currentContents.put(it) }
+            
+            // Add CURRENT user message to the request only
+            currentContents.put(JSONObject().apply {
+                put("role", "user")
+                put("parts", JSONArray().put(JSONObject().put("text", userMessage)))
+            })
 
             val requestBody = JSONObject().apply {
                 put("system_instruction", JSONObject().apply {
                     put("parts", JSONArray().put(JSONObject().put("text", systemPrompt)))
                 })
-                put("contents", contentsArray)
+                put("contents", currentContents)
             }
 
             val request = Request.Builder()
@@ -55,6 +54,9 @@ object AIHelper {
                 override fun onResponse(call: Call, response: Response) {
                     val body = response.body?.string() ?: ""
                     if (!response.isSuccessful) {
+                        if (response.code == 400) {
+                            conversationHistory.clear() // Reset on bad request to fix role sequence
+                        }
                         callback("AI Error (${response.code}): ${if (response.code == 403) "Invalid API Key" else "Internal Error"}")
                         return
                     }
@@ -68,11 +70,20 @@ object AIHelper {
                             .getJSONObject(0)
                             .getString("text")
 
-                        // Add AI response to history
+                        // COMMIT current turn to history after success
+                        conversationHistory.add(JSONObject().apply {
+                            put("role", "user")
+                            put("parts", JSONArray().put(JSONObject().put("text", userMessage)))
+                        })
                         conversationHistory.add(JSONObject().apply {
                             put("role", "model")
                             put("parts", JSONArray().put(JSONObject().put("text", text)))
                         })
+
+                        if (conversationHistory.size > 20) {
+                            conversationHistory.removeAt(0)
+                            conversationHistory.removeAt(0)
+                        }
 
                         callback(text)
                     } catch (e: Exception) {
