@@ -9,17 +9,18 @@ import java.io.IOException
 
 object AIHelper {
 
-    private const val API_URL = "https://generativelanguage.googleapis.com/v1/models/gemini-1.5-flash:generateContent"
+    private const val API_URL = "https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent"
     private val client = OkHttpClient()
     private val conversationHistory = mutableListOf<JSONObject>()
 
     fun askAI(userMessage: String, apiKey: String, callback: (String) -> Unit) {
         try {
             // Add user message to history
-            conversationHistory.add(JSONObject().apply {
+            val userMsg = JSONObject().apply {
                 put("role", "user")
                 put("parts", JSONArray().put(JSONObject().put("text", userMessage)))
-            })
+            }
+            conversationHistory.add(userMsg)
 
             val systemPrompt = """You are MAX (Multilingual Assistant X), a highly advanced voice assistant created by Allen.
                 Your personality: Friendly, witty, slightly futuristic, and extremely helpful.
@@ -30,11 +31,15 @@ object AIHelper {
                 Context: You are running on an Android device and can help with phone tasks. 
                 If you cannot perform a task directly, suggest the voice command to use (e.g., "Say 'Open WhatsApp' to chat")."""
 
+            // Build contents array correctly
+            val contentsArray = JSONArray()
+            conversationHistory.forEach { contentsArray.put(it) }
+
             val requestBody = JSONObject().apply {
                 put("system_instruction", JSONObject().apply {
                     put("parts", JSONArray().put(JSONObject().put("text", systemPrompt)))
                 })
-                put("contents", JSONArray(conversationHistory))
+                put("contents", contentsArray)
             }
 
             val request = Request.Builder()

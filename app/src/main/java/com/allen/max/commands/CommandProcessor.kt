@@ -20,45 +20,44 @@ class CommandProcessor(private val context: Context, private val apiKey: String)
     private var flashlightOn = false
 
     fun process(command: String): String {
+        val cmd = command.lowercase()
         return when {
-            command.contains("time") -> DateTimeHelper.getTime()
-            command.contains("date") || command.contains("today") -> DateTimeHelper.getDate()
-            command.contains("day") -> DateTimeHelper.getDay()
-            command.contains("call") && !command.contains("recall") -> handleCall(command)
-            command.contains("redial") || command.contains("call back") -> handleRedial()
-            command.contains("whatsapp") && (command.contains("send") || command.contains("message") || command.contains("text")) -> handleWhatsAppMessage(command)
-            command.contains("send") && command.contains("sms") -> handleSms(command)
-            command.contains("flashlight") || command.contains("torch") -> toggleFlashlight(command)
-            command.contains("volume up") || command.contains("increase volume") -> adjustVolume(true)
-            command.contains("volume down") || command.contains("decrease volume") -> adjustVolume(false)
-            command.contains("mute") -> mutePhone()
-            command.contains("unmute") || command.contains("silent off") -> unmutePhone()
-            command.contains("silent") -> setSilentMode()
-            command.contains("play") -> handleYouTubePlay(command)
-            command.contains("open") || command.contains("launch") -> handleOpenApp(command)
-            command.contains("search") || command.contains("google") -> handleWebSearch(command)
-            command.contains("alarm") || command.contains("wake me") -> handleAlarm(command)
-            command.contains("timer") -> handleTimer(command)
-            command.contains("wifi on") || command.contains("turn on wifi") -> handleWifi(true)
-            command.contains("wifi off") || command.contains("turn off wifi") -> handleWifi(false)
-            command.contains("bluetooth on") -> handleBluetooth(true)
-            command.contains("bluetooth off") -> handleBluetooth(false)
-            command.contains("brightness") -> handleBrightness(command)
-            command.contains("airplane mode") -> handleAirplaneMode()
-            command.contains("battery") -> BatteryHelper.getBatteryStatus(context)
-            command.contains("news") -> { askAI("Tell me the latest global news briefly."); "PROCESS_ASYNC" }
-            command.contains("fact") -> { askAI("Tell me an interesting random fact."); "PROCESS_ASYNC" }
-            command.contains("navigate") || command.contains("directions") || command.contains("take me to") -> handleNavigation(command)
-            command.contains("take photo") || command.contains("take picture") || command.contains("selfie") -> handleCamera(command)
-            command.contains("weather") -> handleWeather()
-            command.contains("contact") -> handleContacts(command)
-            command.contains("joke") -> tellJoke()
-            command.contains("how are you") -> "I'm performing at peak capacity, Allen! Thanks for asking. How can I help?"
-            command.contains("who are you") || command.contains("your name") -> "I am MAX, your personal AI voice assistant. I was created to make your life easier."
-            command.contains("what can you do") || command.contains("help") -> listCommands()
-            command.contains("stop") || command.contains("bye") || command.contains("exit") -> "Shutting down. Goodbye, Allen!"
+            cmd.contains("time") || cmd.contains("waqt") -> DateTimeHelper.getTime()
+            cmd.contains("date") || cmd.contains("tarikh") || cmd.contains("today") -> DateTimeHelper.getDate()
+            cmd.contains("day") || cmd.contains("din") -> DateTimeHelper.getDay()
+            (cmd.contains("call") || cmd.contains("phone")) && !cmd.contains("recall") -> handleCall(cmd)
+            cmd.contains("redial") || cmd.contains("call back") -> handleRedial()
+            (cmd.contains("whatsapp") || cmd.contains("watsapp")) && (cmd.contains("send") || cmd.contains("message") || cmd.contains("text") || cmd.contains("bhejo")) -> handleWhatsAppMessage(cmd)
+            (cmd.contains("send") || cmd.contains("bhejo")) && cmd.contains("sms") -> handleSms(cmd)
+            cmd.contains("flashlight") || cmd.contains("torch") || cmd.contains("light") -> toggleFlashlight(cmd)
+            cmd.contains("volume up") || cmd.contains("increase volume") || cmd.contains("awaz tez") -> adjustVolume(true)
+            cmd.contains("volume down") || cmd.contains("decrease volume") || cmd.contains("awaz kam") -> adjustVolume(false)
+            cmd.contains("mute") || cmd.contains("khamosh") -> mutePhone()
+            cmd.contains("unmute") || cmd.contains("silent off") -> unmutePhone()
+            cmd.contains("silent") -> setSilentMode()
+            cmd.contains("play") || cmd.contains("chalao") || cmd.contains("sunao") -> handleYouTubePlay(cmd)
+            cmd.contains("open") || cmd.contains("launch") || cmd.contains("kholo") -> handleOpenApp(cmd)
+            cmd.contains("search") || cmd.contains("google") || cmd.contains("pucho") -> handleWebSearch(cmd)
+            cmd.contains("alarm") || cmd.contains("wake me") -> handleAlarm(cmd)
+            cmd.contains("timer") -> handleTimer(cmd)
+            cmd.contains("wifi") -> handleWifi(cmd.contains("on") || cmd.contains("kholo"))
+            cmd.contains("bluetooth") -> handleBluetooth(cmd.contains("on"))
+            cmd.contains("brightness") || cmd.contains("roshni") -> handleBrightness(cmd)
+            cmd.contains("airplane mode") -> handleAirplaneMode()
+            cmd.contains("battery") -> BatteryHelper.getBatteryStatus(context)
+            cmd.contains("news") || cmd.contains("khabar") -> { askAI("Tell me the latest global news briefly."); "PROCESS_ASYNC" }
+            cmd.contains("fact") || cmd.contains("haqeeqat") -> { askAI("Tell me an interesting random fact."); "PROCESS_ASYNC" }
+            cmd.contains("navigate") || cmd.contains("directions") || cmd.contains("rasta") -> handleNavigation(cmd)
+            cmd.contains("photo") || cmd.contains("picture") || cmd.contains("tasveer") || cmd.contains("camera") -> handleCamera(cmd)
+            cmd.contains("weather") || cmd.contains("mausam") -> handleWeather()
+            cmd.contains("contact") -> handleContacts(cmd)
+            cmd.contains("joke") || cmd.contains("latifa") -> tellJoke()
+            cmd.contains("how are you") || cmd.contains("kaise ho") -> "I'm performing at peak capacity, Allen! Main bilkul theek hoon. How can I help?"
+            cmd.contains("who are you") || cmd.contains("your name") || cmd.contains("naam") -> "I am MAX, your personal AI voice assistant. I was created to make your life easier."
+            cmd.contains("what can you do") || cmd.contains("help") || cmd.contains("madad") -> listCommands()
+            cmd.contains("stop") || cmd.contains("bye") || cmd.contains("exit") -> "Shutting down. Goodbye, Allen!"
             else -> {
-                askAI(command)
+                askAI(cmd)
                 "PROCESS_ASYNC"
             }
         }
