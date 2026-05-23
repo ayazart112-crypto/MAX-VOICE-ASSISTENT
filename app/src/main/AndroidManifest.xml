@@ -1,4 +1,28 @@
 <manifest xmlns:android="http://schemas.android.com/apk/res/android" package="com.allen.max">
+    <queries>
+        <package android:name="com.whatsapp"/>
+        <package android:name="com.google.android.youtube"/>
+        <package android:name="com.instagram.android"/>
+        <package android:name="com.facebook.katana"/>
+        <package android:name="org.telegram.messenger"/>
+        <package android:name="com.zhiliaoapp.musically"/>
+        <package android:name="com.spotify.music"/>
+        <package android:name="com.google.android.apps.maps"/>
+        <package android:name="com.android.chrome"/>
+        <package android:name="com.android.settings"/>
+        <package android:name="com.android.calculator2"/>
+        <package android:name="com.google.android.calendar"/>
+        <package android:name="com.android.contacts"/>
+        <package android:name="com.android.deskclock"/>
+        <package android:name="com.google.android.gm"/>
+        <package android:name="com.google.android.apps.docs"/>
+        <package android:name="com.android.vending"/>
+        <intent>
+            <action android:name="android.intent.action.VIEW"/>
+            <category android:name="android.intent.category.BROWSABLE"/>
+            <data android:scheme="https"/>
+        </intent>
+    </queries>
 
     <uses-permission android:name="android.permission.RECORD_AUDIO"/>
     <uses-permission android:name="android.permission.INTERNET"/>
