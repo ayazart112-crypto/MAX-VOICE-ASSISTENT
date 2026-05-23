@@ -108,14 +108,14 @@ class MainActivity : AppCompatActivity(), TextToSpeech.OnInitListener {
     private fun setupSpeechRecognizer() {
         speechRecognizer.setRecognitionListener(object : RecognitionListener {
             override fun onResults(results: Bundle?) {
+                isListening = false
+                updateUI(false)
                 val matches = results?.getStringArrayList(SpeechRecognizer.RESULTS_RECOGNITION)
                 if (!matches.isNullOrEmpty()) {
                     val command = matches[0]
                     tvCommand.text = "You said: $command"
                     processCommand(command)
                 } else {
-                    isListening = false
-                    updateUI(false)
                     if (autoRestart) {
                         Handler(Looper.getMainLooper()).postDelayed({
                            if (autoRestart) startListening()
