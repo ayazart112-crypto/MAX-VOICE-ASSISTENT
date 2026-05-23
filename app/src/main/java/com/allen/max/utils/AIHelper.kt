@@ -67,12 +67,12 @@ object AIHelper {
 
                         callback(text)
                     } catch (e: Exception) {
-                        callback("Sorry, something went wrong.")
+                        callback("I'm sorry, I encountered a processing error. Please try again.")
                     }
                 }
             })
         } catch (e: Exception) {
-            callback("Error connecting to AI.")
+            callback("I'm having trouble connecting to the network. Please check your internet connection.")
         }
     }
 

@@ -46,8 +46,8 @@ class CommandProcessor(private val context: Context, private val apiKey: String)
             command.contains("brightness") -> handleBrightness(command)
             command.contains("airplane mode") -> handleAirplaneMode()
             command.contains("battery") -> BatteryHelper.getBatteryStatus(context)
-            command.contains("news") -> { askAI("Tell me the latest global news briefly."); "Fetching the latest news for you..." }
-            command.contains("fact") -> { askAI("Tell me an interesting random fact."); "Let me find an interesting fact." }
+            command.contains("news") -> { askAI("Tell me the latest global news briefly."); "PROCESS_ASYNC" }
+            command.contains("fact") -> { askAI("Tell me an interesting random fact."); "PROCESS_ASYNC" }
             command.contains("navigate") || command.contains("directions") || command.contains("take me to") -> handleNavigation(command)
             command.contains("take photo") || command.contains("take picture") || command.contains("selfie") -> handleCamera(command)
             command.contains("weather") -> handleWeather()
@@ -59,12 +59,13 @@ class CommandProcessor(private val context: Context, private val apiKey: String)
             command.contains("stop") || command.contains("bye") || command.contains("exit") -> "Shutting down. Goodbye, Allen!"
             else -> {
                 askAI(command)
-                "Checking my memory banks..."
+                "PROCESS_ASYNC"
             }
         }
     }
 
     private fun askAI(command: String) {
+        (context as? MainActivity)?.updateResponse("Checking memory banks...")
         AIHelper.askAI(command, apiKey) { response ->
             android.os.Handler(android.os.Looper.getMainLooper()).post {
                 (context as? MainActivity)?.updateResponse(response)

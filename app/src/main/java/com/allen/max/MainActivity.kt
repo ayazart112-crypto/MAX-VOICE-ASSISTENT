@@ -90,6 +90,17 @@ class MainActivity : AppCompatActivity(), TextToSpeech.OnInitListener {
     override fun onInit(status: Int) {
         if (status == TextToSpeech.SUCCESS) {
             tts.language = Locale.US
+            tts.setOnUtteranceProgressListener(object : android.speech.tts.UtteranceProgressListener() {
+                override fun onStart(utteranceId: String?) {}
+                override fun onDone(utteranceId: String?) {
+                    if (autoRestart) {
+                        Handler(Looper.getMainLooper()).postDelayed({
+                            if (autoRestart) startListening()
+                        }, 500)
+                    }
+                }
+                override fun onError(utteranceId: String?) {}
+            })
             speak("Hello Allen! MAX is ready. How can I help you?")
         }
     }
@@ -102,13 +113,14 @@ class MainActivity : AppCompatActivity(), TextToSpeech.OnInitListener {
                     val command = matches[0]
                     tvCommand.text = "You said: $command"
                     processCommand(command)
-                }
-                isListening = false
-                updateUI(false)
-                if (autoRestart) {
-                    Handler(Looper.getMainLooper()).postDelayed({
-                        if (autoRestart) startListening()
-                    }, 2000)
+                } else {
+                    isListening = false
+                    updateUI(false)
+                    if (autoRestart) {
+                        Handler(Looper.getMainLooper()).postDelayed({
+                           if (autoRestart) startListening()
+                        }, 1000)
+                    }
                 }
             }
 
@@ -134,8 +146,10 @@ class MainActivity : AppCompatActivity(), TextToSpeech.OnInitListener {
 
     private fun processCommand(command: String) {
         val response = commandProcessor.process(command.lowercase())
-        tvResponse.text = "MAX: $response"
-        speak(response)
+        if (response != "PROCESS_ASYNC") {
+            tvResponse.text = "MAX: $response"
+            speak(response)
+        }
     }
 
     fun updateResponse(text: String) {
@@ -143,11 +157,13 @@ class MainActivity : AppCompatActivity(), TextToSpeech.OnInitListener {
     }
 
     fun speak(text: String) {
-        tts.speak(text, TextToSpeech.QUEUE_FLUSH, null, null)
+        val params = Bundle()
+        params.putString(TextToSpeech.Engine.KEY_PARAM_UTTERANCE_ID, "MAX_UTTERANCE")
+        tts.speak(text, TextToSpeech.QUEUE_FLUSH, params, "MAX_UTTERANCE")
     }
 
     private fun startListening() {
-        if (!hasRequiredPermissions()) return
+        if (!hasRequiredPermissions() || isListening) return
         isListening = true
         updateUI(true)
         val intent = Intent(RecognizerIntent.ACTION_RECOGNIZE_SPEECH).apply {
@@ -168,11 +184,7 @@ class MainActivity : AppCompatActivity(), TextToSpeech.OnInitListener {
     private fun updateUI(listening: Boolean) {
         tvStatus.text = if (listening) "Listening..." else "Tap mic to speak"
         btnMic.isSelected = listening
-        if (listening) {
-            startPulsingAnimation()
-        } else {
-            stopPulsingAnimation()
-        }
+        if (listening) startPulsingAnimation() else stopPulsingAnimation()
     }
 
     private var pulseAnimator: android.animation.ObjectAnimator? = null
@@ -204,8 +216,7 @@ class MainActivity : AppCompatActivity(), TextToSpeech.OnInitListener {
                 Manifest.permission.CALL_PHONE,
                 Manifest.permission.READ_CONTACTS,
                 Manifest.permission.SEND_SMS,
-                Manifest.permission.CAMERA,
-                Manifest.permission.READ_EXTERNAL_STORAGE
+                Manifest.permission.CAMERA
             ),
             PERMISSION_REQUEST_CODE
         )
