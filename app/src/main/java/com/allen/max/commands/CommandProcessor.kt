@@ -74,22 +74,40 @@ class CommandProcessor(private val context: Context, private val apiKey: String)
     }
 
     private fun handleWhatsAppMessage(command: String): String {
-        val toIndex = command.indexOf(" to ")
-        val sayIndex = command.indexOf(" say ")
-        val name = when {
-            toIndex != -1 && sayIndex != -1 -> command.substring(toIndex + 4, sayIndex).trim()
-            toIndex != -1 -> command.substring(toIndex + 4).trim().split(" ").firstOrNull() ?: ""
-            else -> ""
+        val separators = listOf(" say ", " bolo ", " likho ", " message ", " text ", " kaho ")
+        var separatorUsed = ""
+        var sepIndex = -1
+        
+        for (sep in separators) {
+            val idx = command.indexOf(sep)
+            if (idx != -1 && (sepIndex == -1 || idx < sepIndex)) {
+                sepIndex = idx
+                separatorUsed = sep
+            }
         }
-        val message = if (sayIndex != -1) command.substring(sayIndex + 5).trim() else ""
+
+        val toIndex = command.indexOf(" to ")
+        val name = when {
+            sepIndex != -1 && toIndex != -1 && toIndex < sepIndex -> 
+                command.substring(toIndex + 4, sepIndex).trim()
+            sepIndex != -1 -> 
+                command.substring(0, sepIndex).replace("whatsapp", "").replace("send", "").replace("message", "").replace("text", "").replace("bhejo", "").trim().split(" ").lastOrNull() ?: ""
+            toIndex != -1 -> 
+                command.substring(toIndex + 4).trim().split(" ").firstOrNull() ?: ""
+            else -> 
+                command.replace("whatsapp", "").replace("send", "").replace("message", "").replace("text", "").replace("bhejo", "").trim().split(" ").lastOrNull() ?: ""
+        }
+
+        val message = if (sepIndex != -1) command.substring(sepIndex + separatorUsed.length).trim() else ""
         val phone = if (name.isNotEmpty()) ContactHelper.getPhoneNumber(context, name) else null
+
         return if (phone != null && message.isNotEmpty()) {
             val cleanPhone = phone.replace("+", "").replace(" ", "").replace("-", "")
             context.startActivity(Intent(Intent.ACTION_VIEW).apply {
                 data = Uri.parse("https://api.whatsapp.com/send?phone=$cleanPhone&text=${Uri.encode(message)}")
                 flags = Intent.FLAG_ACTIVITY_NEW_TASK
             })
-            "Sending WhatsApp message to $name."
+            "Sending WhatsApp to $name: $message"
         } else if (phone != null) {
             val cleanPhone = phone.replace("+", "").replace(" ", "").replace("-", "")
             context.startActivity(Intent(Intent.ACTION_VIEW).apply {
@@ -134,14 +152,35 @@ class CommandProcessor(private val context: Context, private val apiKey: String)
     }
 
     private fun handleSms(command: String): String {
-        val name = command.replace("send sms to", "").replace("send sms", "").trim().split(" ").firstOrNull() ?: ""
+        val separators = listOf(" say ", " bolo ", " likho ", " message ", " text ", " kaho ")
+        var separatorUsed = ""
+        var sepIndex = -1
+        
+        for (sep in separators) {
+            val idx = command.indexOf(sep)
+            if (idx != -1 && (sepIndex == -1 || idx < sepIndex)) {
+                sepIndex = idx
+                separatorUsed = sep
+            }
+        }
+
+        val name = when {
+            sepIndex != -1 -> 
+                command.substring(0, sepIndex).replace("send sms to", "").replace("send sms", "").replace("sms", "").replace("bhejo", "").trim().split(" ").lastOrNull() ?: ""
+            else -> 
+                command.replace("send sms to", "").replace("send sms", "").replace("sms", "").replace("bhejo", "").trim().split(" ").lastOrNull() ?: ""
+        }
+
         val phone = ContactHelper.getPhoneNumber(context, name)
-        val message = if (command.contains(" say ")) command.substringAfter(" say ").trim() else ""
+        val message = if (sepIndex != -1) command.substring(sepIndex + separatorUsed.length).trim() else ""
+
         context.startActivity(Intent(Intent.ACTION_VIEW, if (phone != null) Uri.parse("sms:$phone") else Uri.parse("sms:")).apply {
             putExtra("sms_body", message)
             flags = Intent.FLAG_ACTIVITY_NEW_TASK
         })
-        return if (phone != null) "Opening SMS to $name." else "Opening messages."
+        return if (phone != null && message.isNotEmpty()) "Opening SMS to $name: $message" 
+               else if (phone != null) "Opening SMS to $name." 
+               else "Opening messages."
     }
 
     private fun handleCall(command: String): String {
