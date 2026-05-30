@@ -48,7 +48,10 @@ class MainActivity : AppCompatActivity(), TextToSpeech.OnInitListener {
         btnLang = findViewById(R.id.btnLang)
 
         tts = TextToSpeech(this, this)
-        val apiKey = try { assets.open("gemini_key.txt").bufferedReader().use { it.readText().trim() } } catch (e: Exception) { "" }
+
+        // FIX: load API key with clear error logging
+        val apiKey = loadApiKey()
+
         commandProcessor = CommandProcessor(this, apiKey)
         speechRecognizer = SpeechRecognizer.createSpeechRecognizer(this)
         setupSpeechRecognizer()
@@ -92,6 +95,23 @@ class MainActivity : AppCompatActivity(), TextToSpeech.OnInitListener {
         }
     }
 
+    // FIX: dedicated key loader with proper error handling
+    private fun loadApiKey(): String {
+        return try {
+            val key = assets.open("gemini_key.txt").bufferedReader().use { it.readText().trim() }
+            if (key.isBlank()) {
+                android.util.Log.e("MAX", "gemini_key.txt is empty! AI brain will not work.")
+                ""
+            } else {
+                android.util.Log.d("MAX", "API key loaded successfully.")
+                key
+            }
+        } catch (e: Exception) {
+            android.util.Log.e("MAX", "gemini_key.txt not found in assets! AI brain will not work. Error: ${e.message}")
+            ""
+        }
+    }
+
     private fun hasRequiredPermissions(): Boolean {
         return ContextCompat.checkSelfPermission(this, Manifest.permission.RECORD_AUDIO) == PackageManager.PERMISSION_GRANTED
     }
@@ -127,7 +147,7 @@ class MainActivity : AppCompatActivity(), TextToSpeech.OnInitListener {
                 } else {
                     if (autoRestart) {
                         Handler(Looper.getMainLooper()).postDelayed({
-                           if (autoRestart) startListening()
+                            if (autoRestart) startListening()
                         }, 1000)
                     }
                 }
@@ -167,12 +187,8 @@ class MainActivity : AppCompatActivity(), TextToSpeech.OnInitListener {
 
     fun speak(text: String) {
         val isUrdu = text.any { it in '\u0600'..'\u06FF' }
-        if (isUrdu) {
-            tts.language = Locale("ur", "PK")
-        } else {
-            tts.language = Locale.US
-        }
-        
+        tts.language = if (isUrdu) Locale("ur", "PK") else Locale.US
+
         val params = Bundle()
         params.putString(TextToSpeech.Engine.KEY_PARAM_UTTERANCE_ID, "MAX_UTTERANCE")
         tts.speak(text, TextToSpeech.QUEUE_FLUSH, params, "MAX_UTTERANCE")
@@ -184,12 +200,10 @@ class MainActivity : AppCompatActivity(), TextToSpeech.OnInitListener {
         updateUI(true)
         val intent = Intent(RecognizerIntent.ACTION_RECOGNIZE_SPEECH).apply {
             putExtra(RecognizerIntent.EXTRA_LANGUAGE_MODEL, RecognizerIntent.LANGUAGE_MODEL_FREE_FORM)
-            
             val language = if (isUrduMode) "ur-PK" else "en-US"
             putExtra(RecognizerIntent.EXTRA_LANGUAGE, language)
             putExtra(RecognizerIntent.EXTRA_LANGUAGE_PREFERENCE, language)
             putExtra(RecognizerIntent.EXTRA_ONLY_RETURN_LANGUAGE_PREFERENCE, false)
-            
             putExtra(RecognizerIntent.EXTRA_MAX_RESULTS, 1)
         }
         speechRecognizer.startListening(intent)

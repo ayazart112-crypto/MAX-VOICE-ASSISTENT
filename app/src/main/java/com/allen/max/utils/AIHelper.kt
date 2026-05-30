@@ -11,9 +11,18 @@ object AIHelper {
 
     private const val API_URL = "https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent"
     private val client = OkHttpClient()
+
+    // FIX: synchronized list to prevent thread-safety crashes
     private val conversationHistory = mutableListOf<JSONObject>()
+    private val historyLock = Any()
 
     fun askAI(userMessage: String, apiKey: String, callback: (String) -> Unit) {
+        // FIX: validate API key before any network call
+        if (apiKey.isBlank()) {
+            callback("AI brain offline. Please add your Gemini API key to assets/gemini_key.txt")
+            return
+        }
+
         try {
             val systemPrompt = """You are MAX (Multilingual Assistant X), a highly advanced voice assistant created by Allen.
                 Your personality: Friendly, witty, slightly futuristic, and extremely helpful.
@@ -21,14 +30,14 @@ object AIHelper {
                 1. Always respond in the SAME language the user uses (English or Urdu/Roman Urdu).
                 2. If the user mixes languages, respond in English but acknowledge the Urdu parts.
                 Conciseness: Keep responses under 20 words as they will be spoken aloud.
-                Context: You are running on an Android device and can help with phone tasks. 
+                Context: You are running on an Android device and can help with phone tasks.
                 If you cannot perform a task directly, suggest the voice command to use (e.g., "Say 'Open WhatsApp' to chat")."""
 
-            // Create temporary contents array for this request
+            // FIX: build request contents safely under lock
             val currentContents = JSONArray()
-            conversationHistory.forEach { currentContents.put(it) }
-            
-            // Add CURRENT user message to the request only
+            synchronized(historyLock) {
+                conversationHistory.forEach { currentContents.put(it) }
+            }
             currentContents.put(JSONObject().apply {
                 put("role", "user")
                 put("parts", JSONArray().put(JSONObject().put("text", userMessage)))
@@ -48,18 +57,28 @@ object AIHelper {
 
             client.newCall(request).enqueue(object : Callback {
                 override fun onFailure(call: Call, e: IOException) {
-                    callback("Sorry, I couldn't connect to AI. Please check internet.")
+                    callback("Sorry, I couldn't connect to AI. Please check your internet.")
                 }
 
                 override fun onResponse(call: Call, response: Response) {
                     val body = response.body?.string() ?: ""
+
                     if (!response.isSuccessful) {
+                        // FIX: clear history on 400 (bad role sequence), give clear error messages
                         if (response.code == 400) {
-                            conversationHistory.clear() // Reset on bad request to fix role sequence
+                            synchronized(historyLock) { conversationHistory.clear() }
                         }
-                        callback("AI Error (${response.code}): ${if (response.code == 403) "Invalid API Key" else "Internal Error"}")
+                        val reason = when (response.code) {
+                            400 -> "Conversation reset. Please try again."
+                            401, 403 -> "Invalid API key. Check gemini_key.txt"
+                            429 -> "Too many requests. Please wait a moment."
+                            500, 503 -> "Gemini service is down. Try again later."
+                            else -> "AI error (${response.code}). Try again."
+                        }
+                        callback(reason)
                         return
                     }
+
                     try {
                         val json = JSONObject(body)
                         val text = json
@@ -70,33 +89,35 @@ object AIHelper {
                             .getJSONObject(0)
                             .getString("text")
 
-                        // COMMIT current turn to history after success
-                        conversationHistory.add(JSONObject().apply {
-                            put("role", "user")
-                            put("parts", JSONArray().put(JSONObject().put("text", userMessage)))
-                        })
-                        conversationHistory.add(JSONObject().apply {
-                            put("role", "model")
-                            put("parts", JSONArray().put(JSONObject().put("text", text)))
-                        })
-
-                        if (conversationHistory.size > 20) {
-                            conversationHistory.removeAt(0)
-                            conversationHistory.removeAt(0)
+                        // FIX: only commit to history on success, always in pairs
+                        synchronized(historyLock) {
+                            conversationHistory.add(JSONObject().apply {
+                                put("role", "user")
+                                put("parts", JSONArray().put(JSONObject().put("text", userMessage)))
+                            })
+                            conversationHistory.add(JSONObject().apply {
+                                put("role", "model")
+                                put("parts", JSONArray().put(JSONObject().put("text", text)))
+                            })
+                            // FIX: keep last 10 turns max, always remove in pairs
+                            while (conversationHistory.size > 20) {
+                                conversationHistory.removeAt(0)
+                                conversationHistory.removeAt(0)
+                            }
                         }
 
                         callback(text)
                     } catch (e: Exception) {
-                        callback("I'm sorry, I couldn't process the AI response. Please try again.")
+                        callback("I couldn't read the AI response. Please try again.")
                     }
                 }
             })
         } catch (e: Exception) {
-            callback("I'm having trouble connecting to the network. Please check your internet connection.")
+            callback("Network error. Please check your internet connection.")
         }
     }
 
     fun clearHistory() {
-        conversationHistory.clear()
+        synchronized(historyLock) { conversationHistory.clear() }
     }
 }

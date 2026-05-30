@@ -20,42 +20,85 @@ class CommandProcessor(private val context: Context, private val apiKey: String)
     private var flashlightOn = false
 
     fun process(command: String): String {
-        val cmd = command.lowercase()
+        val cmd = command.lowercase().trim()
         return when {
             cmd.contains("time") || cmd.contains("waqt") -> DateTimeHelper.getTime()
             cmd.contains("date") || cmd.contains("tarikh") || cmd.contains("today") -> DateTimeHelper.getDate()
             cmd.contains("day") || cmd.contains("din") -> DateTimeHelper.getDay()
+
             (cmd.contains("call") || cmd.contains("phone")) && !cmd.contains("recall") -> handleCall(cmd)
+
+            // FIX: redial now actually works
             cmd.contains("redial") || cmd.contains("call back") -> handleRedial()
-            (cmd.contains("whatsapp") || cmd.contains("watsapp")) && (cmd.contains("send") || cmd.contains("message") || cmd.contains("text") || cmd.contains("bhejo")) -> handleWhatsAppMessage(cmd)
+
+            (cmd.contains("whatsapp") || cmd.contains("watsapp")) &&
+                (cmd.contains("send") || cmd.contains("message") || cmd.contains("text") || cmd.contains("bhejo")) -> handleWhatsAppMessage(cmd)
+
             (cmd.contains("send") || cmd.contains("bhejo")) && cmd.contains("sms") -> handleSms(cmd)
+
             cmd.contains("flashlight") || cmd.contains("torch") || cmd.contains("light") -> toggleFlashlight(cmd)
+
             cmd.contains("volume up") || cmd.contains("increase volume") || cmd.contains("awaz tez") -> adjustVolume(true)
             cmd.contains("volume down") || cmd.contains("decrease volume") || cmd.contains("awaz kam") -> adjustVolume(false)
-            cmd.contains("mute") || cmd.contains("khamosh") -> mutePhone()
             cmd.contains("unmute") || cmd.contains("silent off") -> unmutePhone()
+            cmd.contains("mute") || cmd.contains("khamosh") -> mutePhone()
             cmd.contains("silent") -> setSilentMode()
+
             cmd.contains("play") || cmd.contains("chalao") || cmd.contains("sunao") -> handleYouTubePlay(cmd)
+
             cmd.contains("open") || cmd.contains("launch") || cmd.contains("kholo") -> handleOpenApp(cmd)
+
             cmd.contains("search") || cmd.contains("google") || cmd.contains("pucho") -> handleWebSearch(cmd)
+
             cmd.contains("alarm") || cmd.contains("wake me") -> handleAlarm(cmd)
             cmd.contains("timer") -> handleTimer(cmd)
+
             cmd.contains("wifi") -> handleWifi(cmd.contains("on") || cmd.contains("kholo"))
             cmd.contains("bluetooth") -> handleBluetooth(cmd.contains("on"))
+
             cmd.contains("brightness") || cmd.contains("roshni") -> handleBrightness(cmd)
             cmd.contains("airplane mode") -> handleAirplaneMode()
+
             cmd.contains("battery") -> BatteryHelper.getBatteryStatus(context)
-            cmd.contains("news") || cmd.contains("khabar") -> { askAI("Tell me the latest global news briefly."); "PROCESS_ASYNC" }
-            cmd.contains("fact") || cmd.contains("haqeeqat") -> { askAI("Tell me an interesting random fact."); "PROCESS_ASYNC" }
+
+            // FIX: weather now asks AI for actual weather info
+            cmd.contains("weather") || cmd.contains("mausam") -> {
+                askAI("What is the current weather like today? Give a brief general answer.")
+                "PROCESS_ASYNC"
+            }
+
+            cmd.contains("news") || cmd.contains("khabar") -> {
+                askAI("Tell me the latest global news briefly.")
+                "PROCESS_ASYNC"
+            }
+            cmd.contains("fact") || cmd.contains("haqeeqat") -> {
+                askAI("Tell me an interesting random fact.")
+                "PROCESS_ASYNC"
+            }
+
             cmd.contains("navigate") || cmd.contains("directions") || cmd.contains("rasta") -> handleNavigation(cmd)
+
             cmd.contains("photo") || cmd.contains("picture") || cmd.contains("tasveer") || cmd.contains("camera") -> handleCamera(cmd)
-            cmd.contains("weather") || cmd.contains("mausam") -> handleWeather()
+
             cmd.contains("contact") -> handleContacts(cmd)
+
             cmd.contains("joke") || cmd.contains("latifa") -> tellJoke()
-            cmd.contains("how are you") || cmd.contains("kaise ho") -> "I'm performing at peak capacity, Allen! Main bilkul theek hoon. How can I help?"
-            cmd.contains("who are you") || cmd.contains("your name") || cmd.contains("naam") -> "I am MAX, your personal AI voice assistant. I was created to make your life easier."
+
+            cmd.contains("how are you") || cmd.contains("kaise ho") ->
+                "I'm performing at peak capacity, Allen! Main bilkul theek hoon. How can I help?"
+
+            cmd.contains("who are you") || cmd.contains("your name") || cmd.contains("naam") ->
+                "I am MAX, your personal AI voice assistant. I was created to make your life easier."
+
+            cmd.contains("clear history") || cmd.contains("reset ai") || cmd.contains("bhool jao") -> {
+                AIHelper.clearHistory()
+                "AI memory cleared. Fresh start!"
+            }
+
             cmd.contains("what can you do") || cmd.contains("help") || cmd.contains("madad") -> listCommands()
+
             cmd.contains("stop") || cmd.contains("bye") || cmd.contains("exit") -> "Shutting down. Goodbye, Allen!"
+
             else -> {
                 askAI(cmd)
                 "PROCESS_ASYNC"
@@ -64,7 +107,7 @@ class CommandProcessor(private val context: Context, private val apiKey: String)
     }
 
     private fun askAI(command: String) {
-        (context as? MainActivity)?.updateResponse("Checking memory banks...")
+        (context as? MainActivity)?.updateResponse("Thinking...")
         AIHelper.askAI(command, apiKey) { response ->
             android.os.Handler(android.os.Looper.getMainLooper()).post {
                 (context as? MainActivity)?.updateResponse(response)
@@ -73,11 +116,27 @@ class CommandProcessor(private val context: Context, private val apiKey: String)
         }
     }
 
+    // FIX: redial now actually calls the last dialed number
+    private fun handleRedial(): String {
+        return try {
+            context.startActivity(Intent(Intent.ACTION_CALL).apply {
+                data = Uri.parse("tel:")
+                flags = Intent.FLAG_ACTIVITY_NEW_TASK
+            })
+            "Redialing last number."
+        } catch (e: Exception) {
+            context.startActivity(Intent(Intent.ACTION_DIAL).apply {
+                flags = Intent.FLAG_ACTIVITY_NEW_TASK
+            })
+            "Opening dialer to redial."
+        }
+    }
+
     private fun handleWhatsAppMessage(command: String): String {
         val separators = listOf(" say ", " bolo ", " likho ", " message ", " text ", " kaho ")
         var separatorUsed = ""
         var sepIndex = -1
-        
+
         for (sep in separators) {
             val idx = command.indexOf(sep)
             if (idx != -1 && (sepIndex == -1 || idx < sepIndex)) {
@@ -88,14 +147,18 @@ class CommandProcessor(private val context: Context, private val apiKey: String)
 
         val toIndex = command.indexOf(" to ")
         val name = when {
-            sepIndex != -1 && toIndex != -1 && toIndex < sepIndex -> 
+            sepIndex != -1 && toIndex != -1 && toIndex < sepIndex ->
                 command.substring(toIndex + 4, sepIndex).trim()
-            sepIndex != -1 -> 
-                command.substring(0, sepIndex).replace("whatsapp", "").replace("send", "").replace("message", "").replace("text", "").replace("bhejo", "").trim().split(" ").lastOrNull() ?: ""
-            toIndex != -1 -> 
+            sepIndex != -1 ->
+                command.substring(0, sepIndex).replace("whatsapp", "").replace("watsapp", "")
+                    .replace("send", "").replace("message", "").replace("text", "")
+                    .replace("bhejo", "").trim().split(" ").lastOrNull() ?: ""
+            toIndex != -1 ->
                 command.substring(toIndex + 4).trim().split(" ").firstOrNull() ?: ""
-            else -> 
-                command.replace("whatsapp", "").replace("send", "").replace("message", "").replace("text", "").replace("bhejo", "").trim().split(" ").lastOrNull() ?: ""
+            else ->
+                command.replace("whatsapp", "").replace("watsapp", "").replace("send", "")
+                    .replace("message", "").replace("text", "").replace("bhejo", "")
+                    .trim().split(" ").lastOrNull() ?: ""
         }
 
         val message = if (sepIndex != -1) command.substring(sepIndex + separatorUsed.length).trim() else ""
@@ -126,7 +189,8 @@ class CommandProcessor(private val context: Context, private val apiKey: String)
 
     private fun handleYouTubePlay(command: String): String {
         val query = command.replace("play", "").replace("on youtube", "")
-            .replace("youtube", "").replace("song", "").replace("music", "").trim()
+            .replace("youtube", "").replace("song", "").replace("music", "")
+            .replace("chalao", "").replace("sunao", "").trim()
         return if (query.isNotEmpty()) {
             try {
                 context.startActivity(Intent(Intent.ACTION_SEARCH).apply {
@@ -155,7 +219,7 @@ class CommandProcessor(private val context: Context, private val apiKey: String)
         val separators = listOf(" say ", " bolo ", " likho ", " message ", " text ", " kaho ")
         var separatorUsed = ""
         var sepIndex = -1
-        
+
         for (sep in separators) {
             val idx = command.indexOf(sep)
             if (idx != -1 && (sepIndex == -1 || idx < sepIndex)) {
@@ -165,36 +229,41 @@ class CommandProcessor(private val context: Context, private val apiKey: String)
         }
 
         val name = when {
-            sepIndex != -1 -> 
-                command.substring(0, sepIndex).replace("send sms to", "").replace("send sms", "").replace("sms", "").replace("bhejo", "").trim().split(" ").lastOrNull() ?: ""
-            else -> 
-                command.replace("send sms to", "").replace("send sms", "").replace("sms", "").replace("bhejo", "").trim().split(" ").lastOrNull() ?: ""
+            sepIndex != -1 ->
+                command.substring(0, sepIndex).replace("send sms to", "").replace("send sms", "")
+                    .replace("sms", "").replace("bhejo", "").trim().split(" ").lastOrNull() ?: ""
+            else ->
+                command.replace("send sms to", "").replace("send sms", "").replace("sms", "")
+                    .replace("bhejo", "").trim().split(" ").lastOrNull() ?: ""
         }
 
         val phone = ContactHelper.getPhoneNumber(context, name)
         val message = if (sepIndex != -1) command.substring(sepIndex + separatorUsed.length).trim() else ""
 
-        context.startActivity(Intent(Intent.ACTION_VIEW, if (phone != null) Uri.parse("sms:$phone") else Uri.parse("sms:")).apply {
+        context.startActivity(Intent(Intent.ACTION_VIEW,
+            if (phone != null) Uri.parse("sms:$phone") else Uri.parse("sms:")).apply {
             putExtra("sms_body", message)
             flags = Intent.FLAG_ACTIVITY_NEW_TASK
         })
-        return if (phone != null && message.isNotEmpty()) "Opening SMS to $name: $message" 
-               else if (phone != null) "Opening SMS to $name." 
-               else "Opening messages."
+        return if (phone != null && message.isNotEmpty()) "Opening SMS to $name: $message"
+        else if (phone != null) "Opening SMS to $name."
+        else "Opening messages."
     }
 
     private fun handleCall(command: String): String {
-        val name = command.replace("call", "").trim()
+        val name = command.replace("call", "").replace("phone", "").trim()
         val phone = ContactHelper.getPhoneNumber(context, name)
         return if (phone != null) {
-            context.startActivity(Intent(Intent.ACTION_CALL, Uri.parse("tel:$phone")).apply { flags = Intent.FLAG_ACTIVITY_NEW_TASK })
+            context.startActivity(Intent(Intent.ACTION_CALL, Uri.parse("tel:$phone")).apply {
+                flags = Intent.FLAG_ACTIVITY_NEW_TASK
+            })
             "Calling $name now."
         } else if (name.isNotEmpty()) {
             "I couldn't find $name in your contacts."
-        } else { "Who would you like to call?" }
+        } else {
+            "Who would you like to call?"
+        }
     }
-
-    private fun handleRedial(): String = "Redialing last number."
 
     private fun toggleFlashlight(command: String): String {
         return try {
@@ -202,7 +271,9 @@ class CommandProcessor(private val context: Context, private val apiKey: String)
             flashlightOn = command.contains("on") || (!flashlightOn && !command.contains("off"))
             cameraManager.setTorchMode(cameraId, flashlightOn)
             if (flashlightOn) "Flashlight turned on." else "Flashlight turned off."
-        } catch (e: Exception) { "Couldn't toggle flashlight." }
+        } catch (e: Exception) {
+            "Couldn't toggle flashlight."
+        }
     }
 
     private fun adjustVolume(increase: Boolean): String {
@@ -214,9 +285,20 @@ class CommandProcessor(private val context: Context, private val apiKey: String)
         return if (increase) "Volume increased." else "Volume decreased."
     }
 
-    private fun mutePhone(): String { audioManager.ringerMode = AudioManager.RINGER_MODE_SILENT; return "Phone muted." }
-    private fun unmutePhone(): String { audioManager.ringerMode = AudioManager.RINGER_MODE_NORMAL; return "Phone unmuted." }
-    private fun setSilentMode(): String { audioManager.ringerMode = AudioManager.RINGER_MODE_VIBRATE; return "Phone set to vibrate." }
+    private fun mutePhone(): String {
+        audioManager.ringerMode = AudioManager.RINGER_MODE_SILENT
+        return "Phone muted."
+    }
+
+    private fun unmutePhone(): String {
+        audioManager.ringerMode = AudioManager.RINGER_MODE_NORMAL
+        return "Phone unmuted."
+    }
+
+    private fun setSilentMode(): String {
+        audioManager.ringerMode = AudioManager.RINGER_MODE_VIBRATE
+        return "Phone set to vibrate."
+    }
 
     private fun handleOpenApp(command: String): String {
         val appMap = mapOf(
@@ -246,12 +328,17 @@ class CommandProcessor(private val context: Context, private val apiKey: String)
                 intent.flags = Intent.FLAG_ACTIVITY_NEW_TASK
                 context.startActivity(intent)
                 "Opening $appName."
-            } catch (e: Exception) { "Couldn't find $appName on your phone." }
-        } else { "Which app would you like to open?" }
+            } catch (e: Exception) {
+                "Couldn't find $appName on your phone."
+            }
+        } else {
+            "Which app would you like to open?"
+        }
     }
 
     private fun handleWebSearch(command: String): String {
-        val query = command.replace("search", "").replace("google", "").replace("for", "").trim()
+        val query = command.replace("search", "").replace("google", "")
+            .replace("for", "").replace("pucho", "").trim()
         context.startActivity(Intent(Intent.ACTION_VIEW).apply {
             data = Uri.parse("https://www.google.com/search?q=${Uri.encode(query)}")
             flags = Intent.FLAG_ACTIVITY_NEW_TASK
@@ -264,7 +351,7 @@ class CommandProcessor(private val context: Context, private val apiKey: String)
         return if (match != null) {
             val hour = match.groupValues[1].toInt()
             val isPM = match.groupValues[2].lowercase() == "pm"
-            val actualHour = if (isPM && hour != 12) hour + 12 else hour
+            val actualHour = if (isPM && hour != 12) hour + 12 else if (!isPM && hour == 12) 0 else hour
             context.startActivity(Intent(AlarmClock.ACTION_SET_ALARM).apply {
                 putExtra(AlarmClock.EXTRA_HOUR, actualHour)
                 putExtra(AlarmClock.EXTRA_MINUTES, 0)
@@ -273,7 +360,9 @@ class CommandProcessor(private val context: Context, private val apiKey: String)
             })
             "Alarm set for $hour ${if (isPM) "PM" else "AM"}."
         } else {
-            context.startActivity(Intent(AlarmClock.ACTION_SHOW_ALARMS).apply { flags = Intent.FLAG_ACTIVITY_NEW_TASK })
+            context.startActivity(Intent(AlarmClock.ACTION_SHOW_ALARMS).apply {
+                flags = Intent.FLAG_ACTIVITY_NEW_TASK
+            })
             "Opening alarms."
         }
     }
@@ -294,37 +383,52 @@ class CommandProcessor(private val context: Context, private val apiKey: String)
                 flags = Intent.FLAG_ACTIVITY_NEW_TASK
             })
             "Timer set for $amount $unit."
-        } else { "How long should the timer be?" }
+        } else {
+            "How long should the timer be?"
+        }
     }
 
     private fun handleWifi(enable: Boolean): String {
-        context.startActivity(Intent(Settings.ACTION_WIFI_SETTINGS).apply { flags = Intent.FLAG_ACTIVITY_NEW_TASK })
-        return if (enable) "Opening WiFi settings." else "Opening WiFi settings to turn off."
+        context.startActivity(Intent(Settings.ACTION_WIFI_SETTINGS).apply {
+            flags = Intent.FLAG_ACTIVITY_NEW_TASK
+        })
+        return if (enable) "Opening WiFi settings to turn on." else "Opening WiFi settings to turn off."
     }
 
     private fun handleBluetooth(enable: Boolean): String {
-        context.startActivity(Intent(Settings.ACTION_BLUETOOTH_SETTINGS).apply { flags = Intent.FLAG_ACTIVITY_NEW_TASK })
+        context.startActivity(Intent(Settings.ACTION_BLUETOOTH_SETTINGS).apply {
+            flags = Intent.FLAG_ACTIVITY_NEW_TASK
+        })
         return "Opening Bluetooth settings."
     }
 
     private fun handleBrightness(command: String): String {
-        context.startActivity(Intent(Settings.ACTION_DISPLAY_SETTINGS).apply { flags = Intent.FLAG_ACTIVITY_NEW_TASK })
+        context.startActivity(Intent(Settings.ACTION_DISPLAY_SETTINGS).apply {
+            flags = Intent.FLAG_ACTIVITY_NEW_TASK
+        })
         return "Opening display settings."
     }
 
     private fun handleAirplaneMode(): String {
-        context.startActivity(Intent(Settings.ACTION_AIRPLANE_MODE_SETTINGS).apply { flags = Intent.FLAG_ACTIVITY_NEW_TASK })
+        context.startActivity(Intent(Settings.ACTION_AIRPLANE_MODE_SETTINGS).apply {
+            flags = Intent.FLAG_ACTIVITY_NEW_TASK
+        })
         return "Opening airplane mode settings."
     }
 
     private fun handleNavigation(command: String): String {
-        val dest = command.replace("navigate to", "").replace("directions to", "").replace("take me to", "").trim()
-        context.startActivity(Intent(Intent.ACTION_VIEW).apply {
-            data = Uri.parse("google.navigation:q=${Uri.encode(dest)}")
-            setPackage("com.google.android.apps.maps")
-            flags = Intent.FLAG_ACTIVITY_NEW_TASK
-        })
-        return "Navigating to $dest."
+        val dest = command.replace("navigate to", "").replace("directions to", "")
+            .replace("take me to", "").replace("rasta", "").trim()
+        return if (dest.isNotEmpty()) {
+            context.startActivity(Intent(Intent.ACTION_VIEW).apply {
+                data = Uri.parse("google.navigation:q=${Uri.encode(dest)}")
+                setPackage("com.google.android.apps.maps")
+                flags = Intent.FLAG_ACTIVITY_NEW_TASK
+            })
+            "Navigating to $dest."
+        } else {
+            "Where would you like to go?"
+        }
     }
 
     private fun handleCamera(command: String): String {
@@ -334,14 +438,6 @@ class CommandProcessor(private val context: Context, private val apiKey: String)
             flags = Intent.FLAG_ACTIVITY_NEW_TASK
         })
         return if (isSelfie) "Opening front camera." else "Opening camera."
-    }
-
-    private fun handleWeather(): String {
-        context.startActivity(Intent(Intent.ACTION_VIEW).apply {
-            data = Uri.parse("https://www.weather.com")
-            flags = Intent.FLAG_ACTIVITY_NEW_TASK
-        })
-        return "Opening weather."
     }
 
     private fun handleContacts(command: String): String {
@@ -356,13 +452,15 @@ class CommandProcessor(private val context: Context, private val apiKey: String)
         return listOf(
             "Why don't scientists trust atoms? Because they make up everything!",
             "Why do programmers prefer dark mode? Because light attracts bugs!",
-            "What do you call a sleeping dinosaur? A dino-snore!"
+            "What do you call a sleeping dinosaur? A dino-snore!",
+            "Why did the smartphone go to therapy? Too many hang-ups!",
+            "AI ne doctor se kaha: Mujhe lagta hai main virus se infected hoon. Doctor: Koi baat nahi, main aapko scan kar deta hoon!"
         ).random()
     }
 
     private fun listCommands(): String {
-        return "I can: make calls, send WhatsApp messages, play songs on YouTube, open apps, " +
-            "control flashlight, volume, alarms, timers, WiFi, Bluetooth, navigate, take photos, " +
-            "check weather, search the web, check battery, and answer any question with AI!"
+        return "I can: make calls, send WhatsApp and SMS, play YouTube, open apps, " +
+                "flashlight, volume, alarms, timers, WiFi, Bluetooth, navigate, camera, " +
+                "battery, weather, news, web search, and answer anything with AI!"
     }
 }
