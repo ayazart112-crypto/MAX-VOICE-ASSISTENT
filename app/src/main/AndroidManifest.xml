@@ -72,7 +72,7 @@
             android:name=".services.MAXService"
             android:enabled="true"
             android:exported="false"
-            android:foregroundServiceType="microphone"/>
+            android:foregroundServiceType="specialUse"/>
 
     </application>
 
