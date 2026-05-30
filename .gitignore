@@ -14,3 +14,4 @@
 .cxx
 local.properties
 *.zip
+app/src/main/assets/gemini_key.txt
