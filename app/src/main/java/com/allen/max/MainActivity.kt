@@ -50,7 +50,7 @@ class MainActivity : AppCompatActivity(), TextToSpeech.OnInitListener {
         tts = TextToSpeech(this, this)
 
         // FIX: load API key with clear error logging
-        val apiKey = loadApiKey()
+        val apiKey = com.allen.max.utils.AIHelper.GEMINI_KEY
 
         commandProcessor = CommandProcessor(this, apiKey)
         speechRecognizer = SpeechRecognizer.createSpeechRecognizer(this)
