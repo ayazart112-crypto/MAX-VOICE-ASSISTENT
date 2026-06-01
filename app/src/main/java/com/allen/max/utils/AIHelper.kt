@@ -9,7 +9,7 @@ import java.io.IOException
 
 object AIHelper {
 
-    const val GEMINI_KEY = "AQ.Ab8RN6IbbGib59BQiVR-klA-COwyRb6BlDSiOTpGxpSH8pt2XQ"
+    const val GEMINI_KEY = BuildConfig.GEMINI_KEY
     private const val API_URL = "https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent"
     private val client = OkHttpClient()
 
