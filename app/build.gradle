@@ -12,10 +12,17 @@ android {
         versionCode 2
         versionName "2.0"
 
-        // Read key from local.properties
-        def localProps = new java.util.Properties()
-        localProps.load(new java.io.FileInputStream(rootProject.file("local.properties")))
-        buildConfigField "String", "GEMINI_KEY", "\"${localProps['gemini.api.key']}\""
+        // Read key from local.properties (local dev) or Environment Variable (CI)
+        def localPropsFile = rootProject.file("local.properties")
+        def geminiKey = ""
+        if (localPropsFile.exists()) {
+            def localProps = new java.util.Properties()
+            localProps.load(new java.io.FileInputStream(localPropsFile))
+            geminiKey = localProps['gemini.api.key']
+        } else {
+            geminiKey = System.getenv("GEMINI_KEY") ?: "null"
+        }
+        buildConfigField "String", "GEMINI_KEY", "\"${geminiKey}\""
     }
     buildTypes {
         release {
