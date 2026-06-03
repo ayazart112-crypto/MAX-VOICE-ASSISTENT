@@ -9,8 +9,8 @@ import java.io.IOException
 
 object AIHelper {
 
-    const val GEMINI_KEY = BuildConfig.GEMINI_KEY
-    private const val API_URL = "https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent"
+    private val GEMINI_KEY = com.allen.max.BuildConfig.GEMINI_KEY
+    private const val API_URL = "https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent"
     private val client = OkHttpClient()
 
     // FIX: synchronized list to prevent thread-safety crashes
@@ -19,8 +19,8 @@ object AIHelper {
 
     fun askAI(userMessage: String, apiKey: String = GEMINI_KEY, callback: (String) -> Unit) {
         // FIX: validate API key before any network call
-        if (apiKey.isBlank()) {
-            callback("AI brain offline. Please add your Gemini API key to assets/gemini_key.txt")
+        if (apiKey.isNullOrBlank() || apiKey == "null") {
+            callback("AI brain offline. Please add your Gemini API key to local.properties")
             return
         }
 

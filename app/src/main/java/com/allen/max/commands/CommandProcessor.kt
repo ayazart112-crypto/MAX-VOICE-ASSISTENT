@@ -118,17 +118,23 @@ class CommandProcessor(private val context: Context, private val apiKey: String)
 
     // FIX: redial now actually calls the last dialed number
     private fun handleRedial(): String {
-        return try {
-            context.startActivity(Intent(Intent.ACTION_CALL).apply {
-                data = Uri.parse("tel:")
-                flags = Intent.FLAG_ACTIVITY_NEW_TASK
-            })
-            "Redialing last number."
-        } catch (e: Exception) {
-            context.startActivity(Intent(Intent.ACTION_DIAL).apply {
-                flags = Intent.FLAG_ACTIVITY_NEW_TASK
-            })
-            "Opening dialer to redial."
+        val lastNumber = ContactHelper.getLastDialedNumber(context)
+        return if (lastNumber != null) {
+            try {
+                context.startActivity(Intent(Intent.ACTION_CALL).apply {
+                    data = Uri.parse("tel:$lastNumber")
+                    flags = Intent.FLAG_ACTIVITY_NEW_TASK
+                })
+                "Redialing $lastNumber."
+            } catch (e: Exception) {
+                context.startActivity(Intent(Intent.ACTION_DIAL).apply {
+                    data = Uri.parse("tel:$lastNumber")
+                    flags = Intent.FLAG_ACTIVITY_NEW_TASK
+                })
+                "Opening dialer to redial $lastNumber."
+            }
+        } else {
+            "No recent outgoing calls found to redial."
         }
     }
 

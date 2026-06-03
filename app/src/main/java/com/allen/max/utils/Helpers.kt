@@ -42,6 +42,22 @@ object ContactHelper {
         }
         return null
     }
+
+    fun getLastDialedNumber(context: Context): String? {
+        val uri = android.provider.CallLog.Calls.CONTENT_URI
+        val projection = arrayOf(android.provider.CallLog.Calls.NUMBER)
+        val selection = "${android.provider.CallLog.Calls.TYPE} = ?"
+        val selectionArgs = arrayOf(android.provider.CallLog.Calls.OUTGOING_TYPE.toString())
+        val sortOrder = "${android.provider.CallLog.Calls.DATE} DESC"
+        
+        val cursor: Cursor? = context.contentResolver.query(uri, projection, selection, selectionArgs, sortOrder)
+        cursor?.use {
+            if (it.moveToFirst()) {
+                return it.getString(it.getColumnIndexOrThrow(android.provider.CallLog.Calls.NUMBER))
+            }
+        }
+        return null
+    }
 }
 
 object BatteryHelper {
