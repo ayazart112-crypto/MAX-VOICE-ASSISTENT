@@ -18,7 +18,7 @@ android {
         if (localPropsFile.exists()) {
             def localProps = new java.util.Properties()
             localProps.load(new java.io.FileInputStream(localPropsFile))
-            geminiKey = localProps['gemini.api.key']
+            geminiKey = localProps.getProperty("gemini.api.key") ?: System.getenv("GEMINI_KEY") ?: "null"
         } else {
             geminiKey = System.getenv("GEMINI_KEY") ?: "null"
         }
