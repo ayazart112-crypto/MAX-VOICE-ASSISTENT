@@ -19,7 +19,7 @@ object AIHelper {
 
     fun askAI(userMessage: String, apiKey: String = GEMINI_KEY, callback: (String) -> Unit) {
         // FIX: validate API key before any network call
-        if (apiKey.isNullOrBlank() || apiKey == "null") {
+        if (apiKey.isBlank() || apiKey == "null") {
             callback("AI brain offline. Please add your Gemini API key to local.properties")
             return
         }

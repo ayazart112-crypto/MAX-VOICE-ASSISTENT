@@ -108,10 +108,10 @@ class CommandProcessor(private val context: Context, private val apiKey: String)
 
     private fun askAI(command: String) {
         (context as? MainActivity)?.updateResponse("Thinking...")
+        // FIX: removed duplicate speak() — updateResponse() already calls speak() internally
         AIHelper.askAI(command, apiKey) { response ->
             android.os.Handler(android.os.Looper.getMainLooper()).post {
                 (context as? MainActivity)?.updateResponse(response)
-                (context as? MainActivity)?.speak(response)
             }
         }
     }
@@ -120,13 +120,16 @@ class CommandProcessor(private val context: Context, private val apiKey: String)
     private fun handleRedial(): String {
         val lastNumber = ContactHelper.getLastDialedNumber(context)
         return if (lastNumber != null) {
-            try {
+            if (androidx.core.content.ContextCompat.checkSelfPermission(
+                    context, android.Manifest.permission.CALL_PHONE
+                ) == android.content.pm.PackageManager.PERMISSION_GRANTED
+            ) {
                 context.startActivity(Intent(Intent.ACTION_CALL).apply {
                     data = Uri.parse("tel:$lastNumber")
                     flags = Intent.FLAG_ACTIVITY_NEW_TASK
                 })
                 "Redialing $lastNumber."
-            } catch (e: Exception) {
+            } else {
                 context.startActivity(Intent(Intent.ACTION_DIAL).apply {
                     data = Uri.parse("tel:$lastNumber")
                     flags = Intent.FLAG_ACTIVITY_NEW_TASK
@@ -260,10 +263,21 @@ class CommandProcessor(private val context: Context, private val apiKey: String)
         val name = command.replace("call", "").replace("phone", "").trim()
         val phone = ContactHelper.getPhoneNumber(context, name)
         return if (phone != null) {
-            context.startActivity(Intent(Intent.ACTION_CALL, Uri.parse("tel:$phone")).apply {
-                flags = Intent.FLAG_ACTIVITY_NEW_TASK
-            })
-            "Calling $name now."
+            val hasPermission = androidx.core.content.ContextCompat.checkSelfPermission(
+                context, android.Manifest.permission.CALL_PHONE
+            ) == android.content.pm.PackageManager.PERMISSION_GRANTED
+            // FIX: check runtime permission; fall back to dialer if not granted
+            if (hasPermission) {
+                context.startActivity(Intent(Intent.ACTION_CALL, Uri.parse("tel:$phone")).apply {
+                    flags = Intent.FLAG_ACTIVITY_NEW_TASK
+                })
+                "Calling $name now."
+            } else {
+                context.startActivity(Intent(Intent.ACTION_DIAL, Uri.parse("tel:$phone")).apply {
+                    flags = Intent.FLAG_ACTIVITY_NEW_TASK
+                })
+                "Opening dialer for $name."
+            }
         } else if (name.isNotEmpty()) {
             "I couldn't find $name in your contacts."
         } else {
